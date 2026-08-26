@@ -167,7 +167,12 @@ def extract_due(text):
         (r"\s+next\s+week$", lambda m: (today + timedelta(days=7)).isoformat()),
         (r"\s+in\s+(\d+)\s+days?$", lambda m: (today + timedelta(days=int(m.group(1)))).isoformat()),
         (r"\s+in\s+(\d+)\s+weeks?$", lambda m: (today + timedelta(weeks=int(m.group(1)))).isoformat()),
-        (r"\s+(?:on\s+|next\s+)?(" + "|".join(w[:3] for w in WEEKDAYS) + r")(?:day|sday|nesday|rsday|urday)?$",
+        # Full names stand alone; the short forms need an explicit "on" or
+        # "next". Bare "sun", "sat" and "mon" are ordinary words, and matching
+        # them ate the last word of tasks like "photograph the sun".
+        (r"\s+(?:on\s+|next\s+)?(" + "|".join(WEEKDAYS) + r")$",
+         lambda m: weekday_ahead(m.group(1))),
+        (r"\s+(?:on|next)\s+(mon|tues?|weds?|thurs?|fri|sat|sun)$",
          lambda m: weekday_ahead(m.group(1))),
     ]
     for pattern, resolve in patterns:
@@ -179,7 +184,8 @@ def extract_due(text):
 
 def weekday_ahead(prefix):
     today = date.today()
-    target = next(i for i, name in enumerate(WEEKDAYS) if name.startswith(prefix.lower()))
+    stem = prefix.lower()[:3]
+    target = next(i for i, name in enumerate(WEEKDAYS) if name.startswith(stem))
     ahead = (target - today.weekday()) % 7
     # Naming today's weekday means the next one, not zero days away.
     return (today + timedelta(days=ahead or 7)).isoformat()

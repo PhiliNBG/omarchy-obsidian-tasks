@@ -71,9 +71,16 @@ Understood: `today`, `tomorrow`, `next week`, a weekday name, `in N days`,
 `in N weeks`, and an explicit `YYYY-MM-DD`. Naming today's weekday means the next
 one, not today.
 
-Only a *trailing* phrase counts. `friday night drinks` keeps its wording,
-because stripping mid-sentence would quietly rewrite what the task says. Renaming
-a task reads dates the same way.
+**English only.** Keywords and weekday names are a hardcoded English list, so
+`steuern morgen` or `payer loyer vendredi` simply get no date and keep their text.
+`YYYY-MM-DD` works in any language.
+
+Two rules keep it from rewriting what a task says. Only a *trailing* phrase
+counts, so `friday night drinks` keeps its wording. And short weekday forms need
+an explicit `on` or `next` — `on fri` sets a date, bare `sun` does not, because
+`photograph the sun` should keep its last word. Full names stand alone.
+
+Renaming a task reads dates the same way.
 
 ## Keys
 
