@@ -17,7 +17,8 @@ Panel {
   ipcTarget: "avoby.tasks"
 
   readonly property string glyphBar: String.fromCodePoint(0xF0139)
-  readonly property string glyphBox: String.fromCodePoint(0xF0135)
+  readonly property string glyphOpen: String.fromCodePoint(0xF0131)
+  readonly property string glyphDone: String.fromCodePoint(0xF0132)
 
   readonly property string home: Quickshell.env("HOME") || ""
   readonly property string vaultPath: expand(String(setting("vaultPath", "~/Notes")))
@@ -29,6 +30,10 @@ Panel {
 
   property var tasks: []
   property bool everScanned: false
+  // Tasks ticked within the fade window: written to disk already, still drawn
+  // so the tick is visible and still reversible.
+  property var justDone: []
+  property string editingRaw: ""
   property int cursor: 0
   property bool cursorActive: false
 
@@ -46,7 +51,7 @@ Panel {
 
   // Dated tasks first and in date order, because those are the ones with a
   // deadline attached; undated ones keep their priority order behind them.
-  readonly property var rows: openTasks.slice().sort(function (a, b) {
+  readonly property var rows: openTasks.concat(justDone).sort(function (a, b) {
     var ad = a.due === "" ? "9999-99-99" : a.due
     var bd = b.due === "" ? "9999-99-99" : b.due
     if (ad !== bd) return ad < bd ? -1 : 1
@@ -89,12 +94,55 @@ Panel {
     // The exact line, not its number: sync can rewrite the file between the
     // scan that drew this row and the click that ticks it, and the helper
     // would rather do nothing than tick whatever moved into that position.
+    editProc.mode = "complete"
+    editProc.subject = task
     editProc.command = [root.helper, "complete", task.file, task.raw]
+    editProc.running = true
+  }
+
+  // Keep the ticked row on screen, checked and struck through, until the sweep
+  // retires it. `doneRaw` is the line as it now reads on disk, which is what an
+  // undo has to address.
+  function markJustDone(task, doneRaw) {
+    var entry = {}
+    for (var key in task) entry[key] = task[key]
+    entry.doneRaw = doneRaw
+    entry.retireAt = Date.now() + 1800
+    root.justDone = root.justDone.concat([entry])
+  }
+
+  function undoTask(entry) {
+    if (!entry || editProc.running) return
+    root.justDone = root.justDone.filter(function (e) { return e.doneRaw !== entry.doneRaw })
+    editProc.mode = "uncomplete"
+    editProc.subject = null
+    editProc.command = [root.helper, "uncomplete", entry.file, entry.doneRaw]
+    editProc.running = true
+  }
+
+  function beginEdit(task) {
+    if (!task || task.doneRaw !== undefined) return
+    root.editingRaw = task.raw
+  }
+
+  function cancelEdit() {
+    root.editingRaw = ""
+  }
+
+  function renameTask(task, text) {
+    root.editingRaw = ""
+    if (!task || editProc.running) return
+    if (String(text).trim() === "" || String(text).trim() === task.label) return
+    editProc.mode = "rename"
+    editProc.subject = null
+    editProc.command = [root.helper, "rename", task.file, task.raw, String(text)]
     editProc.running = true
   }
 
   function addTask(text) {
     if (editProc.running || String(text).trim() === "") return
+    editProc.mode = "add"
+    editProc.subject = null
     editProc.command = [root.helper, "add", root.inboxPath, String(text)]
     editProc.running = true
   }
@@ -109,6 +157,8 @@ Panel {
     if (opened) {
       cursor = 0
       cursorActive = false
+      editingRaw = ""
+      justDone = []
       refresh()
     }
   }
@@ -137,7 +187,31 @@ Panel {
   // the popup shows is always what is actually on disk.
   Process {
     id: editProc
+    property string mode: ""
+    property var subject: null
+    stdout: StdioCollector {
+      waitForEnd: true
+      onStreamFinished: {
+        var line = String(text || "").trim()
+        if (editProc.mode === "complete" && line !== "" && editProc.subject)
+          root.markJustDone(editProc.subject, line)
+        editProc.subject = null
+      }
+    }
     onExited: root.refresh()
+  }
+
+  // Retires faded rows a beat after they were ticked. One sweeper rather than a
+  // timer per row, so a burst of ticking cannot pile up timers.
+  Timer {
+    interval: 300
+    running: root.justDone.length > 0
+    repeat: true
+    onTriggered: {
+      var now = Date.now()
+      var live = root.justDone.filter(function (e) { return e.retireAt > now })
+      if (live.length !== root.justDone.length) root.justDone = live
+    }
   }
 
   Timer {
@@ -178,11 +252,17 @@ Panel {
     PanelKeyCatcher {
       id: keyCatcher
       anchors.fill: parent
-      blocked: addField.activeFocus
+      blocked: addField.activeFocus || root.editingRaw !== ""
       onMoveRequested: function (dx, dy) {
         if (dy !== 0) root.moveCursor(dy > 0 ? 1 : -1)
       }
-      onActivateRequested: if (root.cursorActive) root.completeTask(root.rows[root.cursor])
+      onActivateRequested: {
+        if (!root.cursorActive) return
+        var task = root.rows[root.cursor]
+        if (!task) return
+        if (task.doneRaw !== undefined) root.undoTask(task)
+        else root.completeTask(task)
+      }
       onCloseRequested: root.close()
       onTabRequested: function (direction) { root.switchPanel(direction) }
       // hjkl drive the cursor, so capture lives behind "a" rather than
@@ -190,6 +270,9 @@ Panel {
       onTextKey: function (t) {
         if (t === "a" || t === "A") addField.forceActiveFocus()
         else if (t === "r" || t === "R") root.refresh()
+        else if (t === "e" || t === "E") {
+          if (root.cursorActive) root.beginEdit(root.rows[root.cursor])
+        }
       }
 
       Flickable {
@@ -273,8 +356,16 @@ Panel {
               width: column.width
               implicitHeight: Math.max(rowLabel.implicitHeight, Style.space(24))
 
-              readonly property bool overdue: modelData.due !== "" && modelData.due < root.today
-              readonly property bool hot: rowMouse.containsMouse || (root.cursorActive && root.cursor === index)
+              // A row carrying doneRaw was ticked a moment ago: still on screen
+              // so the tick is visible, and still clickable so it can be undone.
+              readonly property bool done: modelData.doneRaw !== undefined
+              readonly property bool editing: root.editingRaw === modelData.raw
+              readonly property bool overdue: !done && modelData.due !== "" && modelData.due < root.today
+              readonly property bool hot: boxMouse.containsMouse || labelMouse.containsMouse
+                || (root.cursorActive && root.cursor === index)
+
+              Behavior on opacity { NumberAnimation { duration: 260 } }
+              opacity: done ? 0.45 : 1.0
 
               Rectangle {
                 anchors.fill: parent
@@ -284,18 +375,31 @@ Panel {
                 color: row.hot ? Qt.rgba(root.foreground.r, root.foreground.g, root.foreground.b, 0.08) : "transparent"
               }
 
+              // The box is the only thing that ticks a task off, so clicking
+              // the words can mean editing them instead.
               Text {
                 id: box
                 anchors.left: parent.left
                 anchors.verticalCenter: parent.verticalCenter
-                text: root.glyphBox
-                color: row.hot ? root.accent : root.dim
+                text: row.done ? root.glyphDone : root.glyphOpen
+                color: row.done ? root.accent : (boxMouse.containsMouse ? root.accent : root.dim)
                 font.family: root.fontFamily
                 font.pixelSize: Style.font.body
+
+                MouseArea {
+                  id: boxMouse
+                  anchors.fill: parent
+                  anchors.margins: -Style.space(4)
+                  hoverEnabled: true
+                  cursorShape: Qt.PointingHandCursor
+                  onEntered: { root.cursorActive = true; root.cursor = row.index }
+                  onClicked: row.done ? root.undoTask(row.modelData) : root.completeTask(row.modelData)
+                }
               }
 
               Text {
                 id: rowLabel
+                visible: !row.editing
                 anchors.left: box.right
                 anchors.leftMargin: Style.space(8)
                 anchors.right: dueBadge.visible ? dueBadge.left : parent.right
@@ -305,28 +409,50 @@ Panel {
                 color: root.foreground
                 font.family: root.fontFamily
                 font.pixelSize: Style.font.body
+                font.strikeout: row.done
                 elide: Text.ElideRight
                 wrapMode: Text.NoWrap
+
+                MouseArea {
+                  id: labelMouse
+                  anchors.fill: parent
+                  enabled: !row.done
+                  hoverEnabled: true
+                  cursorShape: Qt.IBeamCursor
+                  onEntered: { root.cursorActive = true; root.cursor = row.index }
+                  onClicked: root.beginEdit(row.modelData)
+                }
+              }
+
+              TextField {
+                id: rowEdit
+                visible: row.editing
+                anchors.left: box.right
+                anchors.leftMargin: Style.space(4)
+                anchors.right: parent.right
+                anchors.verticalCenter: parent.verticalCenter
+                foreground: root.foreground
+                accent: root.accent
+                verticalPadding: 2
+                font.family: root.fontFamily
+                font.pixelSize: Style.font.body
+                onVisibleChanged: if (visible) { text = row.modelData.label; selectAll(); forceActiveFocus() }
+                onAccepted: root.renameTask(row.modelData, text)
+                Keys.onEscapePressed: root.cancelEdit()
+                // Clicking away is a cancel, not a silent save: a half-typed
+                // edit losing focus should not rewrite the vault.
+                onActiveFocusChanged: if (!activeFocus && row.editing) root.cancelEdit()
               }
 
               Text {
                 id: dueBadge
                 anchors.right: parent.right
                 anchors.verticalCenter: parent.verticalCenter
-                visible: row.modelData.due !== ""
+                visible: !row.editing && row.modelData.due !== ""
                 text: root.dueLabel(row.modelData.due)
                 color: row.overdue ? root.urgent : root.dim
                 font.family: root.fontFamily
                 font.pixelSize: Style.font.caption
-              }
-
-              MouseArea {
-                id: rowMouse
-                anchors.fill: parent
-                hoverEnabled: true
-                cursorShape: Qt.PointingHandCursor
-                onEntered: { root.cursorActive = true; root.cursor = row.index }
-                onClicked: root.completeTask(row.modelData)
               }
             }
           }
@@ -350,7 +476,7 @@ Panel {
             accent: root.accent
             font.family: root.fontFamily
             font.pixelSize: Style.font.body
-            placeholderText: "Add a task…"
+            placeholderText: "Add a task — try \"pay rent friday\""
             onAccepted: {
               root.addTask(text)
               text = ""

@@ -2,25 +2,86 @@
 """Read and edit Obsidian Tasks-format checkboxes in a vault.
 
 Kept deliberately small: the QML widget owns presentation, this owns every
-touch of the vault. Writes are compare-and-swap on the exact line text rather
-than positional, because Obsidian Sync can rewrite a file between the scan
-that drew the list and the click that completes a task.
+touch of the vault. Every write is a compare-and-swap on the exact line text
+rather than a line number, because Obsidian Sync can rewrite a file between
+the scan that drew a row and the click that acts on it.
 """
 import json
 import os
 import re
 import subprocess
 import sys
-from datetime import date
+from datetime import date, timedelta
 
 DUE, DONE, CREATED, SCHEDULED, START = "\U0001F4C5", "✅", "➕", "⏳", "\U0001F6EB"
 PRIORITY = {"\U0001F53A": 0, "\U000023EB": 1, "\U0001F53C": 2, "\U0001F53D": 4, "\U000023EC": 5}
-# Any date-bearing or standalone signifier, used to strip metadata off the label.
-SIGNIFIERS = [DUE, DONE, CREATED, SCHEDULED, START, "❌", "\U0001F501", "\U0001F194", "⛔"]
+# Every signifier Obsidian Tasks defines, whether or not this tool reads it.
+# The list exists so a rename can find where the description ends and leave
+# metadata it doesn't understand untouched rather than eating it.
+SIGNIFIERS = [DUE, DONE, CREATED, SCHEDULED, START, "❌", "\U0001F501",
+              "\U0001F194", "⛔", "\U0001F6AB"] + list(PRIORITY)
 TASK_RE = re.compile(r"^(?P<indent>\s*)(?P<bullet>[-*+])\s\[(?P<status>.)\]\s(?P<body>.*)$")
 DATE_RE = r"(\d{4}-\d{2}-\d{2})"
 EXCLUDES = ["!.obsidian", "!.trash", "!Templates", "!.git"]
+WEEKDAYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
 
+
+# ----------------------------------------------------------------- primitives
+
+def split_body(body):
+    """Split a task body into (description, metadata).
+
+    The description runs up to the first signifier; everything from there on is
+    metadata that edits must preserve verbatim.
+    """
+    cut = len(body)
+    for glyph in SIGNIFIERS:
+        found = body.find(glyph)
+        if found != -1:
+            cut = min(cut, found)
+    return body[:cut].strip(), body[cut:].strip()
+
+
+def rewrite(path, exact, transform):
+    """Apply `transform(status, description, metadata)` to the line matching
+    `exact`, which must return the replacement (status, description, metadata).
+
+    No match means the vault moved under us: a no-op rather than a guess at
+    which line was meant. Returns 0 when a line was rewritten.
+    """
+    try:
+        with open(path, encoding="utf-8") as handle:
+            lines = handle.read().split("\n")
+    except OSError:
+        return 1
+    for index, line in enumerate(lines):
+        if line != exact:
+            continue
+        match = TASK_RE.match(line)
+        if not match:
+            return 1
+        description, metadata = split_body(match.group("body"))
+        result = transform(match.group("status"), description, metadata)
+        if result is None:
+            return 1
+        status, description, metadata = result
+        body = " ".join(part for part in (description, metadata) if part)
+        lines[index] = f'{match.group("indent")}{match.group("bullet")} [{status}] {body}'
+        with open(path, "w", encoding="utf-8") as handle:
+            handle.write("\n".join(lines))
+        # Echoed so the caller can address the line it just created — undo needs
+        # the completed text, which is no longer the text it clicked.
+        print(lines[index])
+        return 0
+    return 1
+
+
+def strip_signifier(metadata, glyph, dated=True):
+    pattern = re.escape(glyph) + (r"\s*" + DATE_RE + r"?" if dated else "")
+    return " ".join(re.sub(pattern, "", metadata).split())
+
+
+# ------------------------------------------------------------------- commands
 
 def scan(vault):
     args = ["rg", "--no-heading", "--with-filename", "--line-number", "--no-messages",
@@ -41,23 +102,15 @@ def scan(vault):
         if not match:
             continue
         body, status = match.group("body"), match.group("status")
-
-        due = re.search(re.escape(DUE) + r"\s*" + DATE_RE, body)
-        priority = next((rank for glyph, rank in PRIORITY.items() if glyph in body), 3)
-
-        label = body
-        for glyph in SIGNIFIERS:
-            label = re.sub(re.escape(glyph) + r"\s*" + DATE_RE + r"?", "", label)
-        for glyph in PRIORITY:
-            label = label.replace(glyph, "")
-
+        description, metadata = split_body(body)
+        due = re.search(re.escape(DUE) + r"\s*" + DATE_RE, metadata)
         tasks.append({
             "file": path,
             "line": int(lineno) if lineno.isdigit() else 0,
             "raw": raw,
-            "label": " ".join(label.split()),
+            "label": description,
             "due": due.group(1) if due else "",
-            "priority": priority,
+            "priority": next((rank for glyph, rank in PRIORITY.items() if glyph in metadata), 3),
             "open": status == " ",
             "vaultPath": os.path.relpath(path, vault),
         })
@@ -65,28 +118,75 @@ def scan(vault):
 
 
 def complete(path, exact):
-    """Tick the first line matching `exact`. No match means the vault moved
-    under us, which is a no-op rather than a guess at which line was meant."""
-    with open(path, encoding="utf-8") as handle:
-        lines = handle.read().split("\n")
-    for index, line in enumerate(lines):
-        if line != exact:
-            continue
-        match = TASK_RE.match(line)
-        if not match or match.group("status") != " ":
-            return 1
-        body = match.group("body").rstrip()
-        if DONE not in body:
-            body = f"{body} {DONE} {date.today().isoformat()}"
-        lines[index] = f'{match.group("indent")}{match.group("bullet")} [x] {body}'
-        with open(path, "w", encoding="utf-8") as handle:
-            handle.write("\n".join(lines))
-        return 0
-    return 1
+    def transform(status, description, metadata):
+        if status != " ":
+            return None
+        if DONE not in metadata:
+            metadata = f"{metadata} {DONE} {date.today().isoformat()}".strip()
+        return "x", description, metadata
+    return rewrite(path, exact, transform)
+
+
+def uncomplete(path, exact):
+    def transform(status, description, metadata):
+        if status == " ":
+            return None
+        return " ", description, strip_signifier(metadata, DONE)
+    return rewrite(path, exact, transform)
+
+
+def rename(path, exact, text):
+    text = " ".join(text.split())
+    if not text:
+        return 1
+
+    def transform(status, description, metadata):
+        # A rename that reintroduces a date phrase should move the due date too,
+        # so editing text behaves the same as typing it in the add box.
+        body, due = extract_due(text)
+        if not body:
+            return None
+        if due:
+            metadata = f"{strip_signifier(metadata, DUE)} {DUE} {due}".strip()
+        return status, body, metadata
+    return rewrite(path, exact, transform)
+
+
+def extract_due(text):
+    """Pull a trailing date phrase off a task description.
+
+    Only trailing phrases count. "call bank friday" sets a date; "friday night
+    drinks" keeps its words, because stripping mid-sentence would quietly
+    rewrite what the task says.
+    """
+    today = date.today()
+    patterns = [
+        (r"\s+(\d{4}-\d{2}-\d{2})$", lambda m: m.group(1)),
+        (r"\s+today$", lambda m: today.isoformat()),
+        (r"\s+(?:tomorrow|tmrw)$", lambda m: (today + timedelta(days=1)).isoformat()),
+        (r"\s+next\s+week$", lambda m: (today + timedelta(days=7)).isoformat()),
+        (r"\s+in\s+(\d+)\s+days?$", lambda m: (today + timedelta(days=int(m.group(1)))).isoformat()),
+        (r"\s+in\s+(\d+)\s+weeks?$", lambda m: (today + timedelta(weeks=int(m.group(1)))).isoformat()),
+        (r"\s+(?:on\s+|next\s+)?(" + "|".join(w[:3] for w in WEEKDAYS) + r")(?:day|sday|nesday|rsday|urday)?$",
+         lambda m: weekday_ahead(m.group(1))),
+    ]
+    for pattern, resolve in patterns:
+        match = re.search(pattern, text, re.IGNORECASE)
+        if match:
+            return text[:match.start()].strip(), resolve(match)
+    return text.strip(), ""
+
+
+def weekday_ahead(prefix):
+    today = date.today()
+    target = next(i for i, name in enumerate(WEEKDAYS) if name.startswith(prefix.lower()))
+    ahead = (target - today.weekday()) % 7
+    # Naming today's weekday means the next one, not zero days away.
+    return (today + timedelta(days=ahead or 7)).isoformat()
 
 
 def add(path, text):
-    text = " ".join(text.split())
+    text, due = extract_due(" ".join(text.split()))
     if not text:
         return 1
     os.makedirs(os.path.dirname(path), exist_ok=True)
@@ -94,27 +194,32 @@ def add(path, text):
     if os.path.exists(path):
         with open(path, encoding="utf-8") as handle:
             existing = handle.read()
-    # TaskForge left its file without a trailing newline; appending blind would
-    # weld the new task onto the last one and lose both.
+    # TaskForge leaves its file without a trailing newline; appending blind
+    # would weld the new task onto the last one and lose both.
     prefix = "" if (not existing or existing.endswith("\n")) else "\n"
+    trailer = f" {DUE} {due}" if due else ""
     with open(path, "a", encoding="utf-8") as handle:
-        handle.write(f"{prefix}- [ ] {text} {CREATED} {date.today().isoformat()}\n")
+        handle.write(f"{prefix}- [ ] {text} {CREATED} {date.today().isoformat()}{trailer}\n")
     return 0
 
 
 def main():
     if len(sys.argv) < 3:
-        print("usage: omarchy-tasks scan <vault> | complete <file> <line> | add <file> <text>",
-              file=sys.stderr)
+        print("usage: omarchy-tasks scan <vault> | complete|uncomplete <file> <line> "
+              "| rename <file> <line> <text> | add <file> <text>", file=sys.stderr)
         return 2
-    action = sys.argv[1]
+    action, args = sys.argv[1], sys.argv[2:]
     if action == "scan":
-        json.dump(scan(sys.argv[2]), sys.stdout)
+        json.dump(scan(args[0]), sys.stdout)
         return 0
-    if action == "complete" and len(sys.argv) >= 4:
-        return complete(sys.argv[2], sys.argv[3])
-    if action == "add" and len(sys.argv) >= 4:
-        return add(sys.argv[2], " ".join(sys.argv[3:]))
+    if action == "complete" and len(args) >= 2:
+        return complete(args[0], args[1])
+    if action == "uncomplete" and len(args) >= 2:
+        return uncomplete(args[0], args[1])
+    if action == "rename" and len(args) >= 3:
+        return rename(args[0], args[1], " ".join(args[2:]))
+    if action == "add" and len(args) >= 2:
+        return add(args[0], " ".join(args[1:]))
     return 2
 
 
