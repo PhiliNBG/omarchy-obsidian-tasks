@@ -3,6 +3,8 @@
 [Obsidian Tasks](https://publish.obsidian.md/tasks/) checkboxes in the Omarchy
 bar: an icon that lights while something is open, and a popup to work through them.
 
+<img src="preview.png" alt="The popup listing open tasks with due badges" width="380">
+
 ## How it's meant to be used
 
 The vault is the only state — no database, no account, no cache:
@@ -39,7 +41,11 @@ or one folder inside it — whatever you give it is the scan root, and tasks
 outside it won't appear.
 
 The field then moves behind the **⚙ gear** in the popup's top right, to change
-folder any time. Or set it from the shell and skip the prompt:
+folder any time.
+
+<img src="preview-vault.png" alt="The vault path field revealed by the gear" width="380">
+
+Or set it from the shell and skip the prompt:
 
 ```bash
 omarchy bar set mjke87.obsidian-tasks vaultPath /path/to/your/vault
