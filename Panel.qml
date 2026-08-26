@@ -27,6 +27,10 @@ Panel {
   property string vaultPath: ""
   property string vaultSource: "none"
   property bool vaultExists: false
+  // No explicit setting yet. Whatever was detected is a suggestion until the
+  // user confirms it, not a decision made on their behalf.
+  readonly property bool vaultUnconfigured: root.vaultHint === ""
+  readonly property string displayVault: vaultPath === "" ? "" : vaultPath.replace(root.home, "~")
   // Empty without a vault, rather than a relative path left dangling off the
   // filesystem root: the bad value shouldn't be constructible in the first place.
   readonly property string inboxPath: root.vaultExists
@@ -415,6 +419,53 @@ Panel {
             foreground: root.foreground
           }
 
+          // Shown until a vault is set explicitly, pre-filled with whatever
+          // Obsidian reported. Confirming is one keystroke; correcting it is
+          // obvious. The alternative — silently adopting a folder and never
+          // saying which — is how you end up staring at the wrong vault.
+          Column {
+            width: parent.width
+            visible: root.vaultUnconfigured
+            spacing: Style.space(6)
+
+            Text {
+              width: parent.width
+              text: root.vaultPath === ""
+                ? "Where do your notes live?"
+                : "Using the vault Obsidian has open. Enter to keep it."
+              color: root.dim
+              font.family: root.fontFamily
+              font.pixelSize: Style.font.caption
+              wrapMode: Text.WordWrap
+            }
+
+            // Typed rather than browsed on purpose: a native folder dialog
+            // pulls GTK3 and gvfs into the shell process, where a synchronous
+            // gvfs call aborts and takes the whole bar down with it.
+            TextField {
+              id: vaultField
+              width: parent.width
+              foreground: root.foreground
+              accent: root.accent
+              font.family: root.fontFamily
+              font.pixelSize: Style.font.body
+              placeholderText: "Path to your vault, e.g. ~/Notes"
+              onAccepted: root.chooseVault(text)
+              Component.onCompleted: text = root.displayVault
+              Connections {
+                target: root
+                function onDisplayVaultChanged() {
+                  if (!vaultField.activeFocus) vaultField.text = root.displayVault
+                }
+              }
+            }
+
+            PanelSeparator {
+              width: parent.width
+              foreground: root.foreground
+            }
+          }
+
           Repeater {
             model: root.rows
 
@@ -527,41 +578,16 @@ Panel {
             }
           }
 
-          Column {
+          Text {
             width: parent.width
             visible: root.everScanned && root.rows.length === 0
-            spacing: Style.space(8)
-
-            Text {
-              width: parent.width
-              text: root.vaultExists
-                ? "No open tasks in " + root.vaultPath.replace(root.home, "~")
-                : (root.vaultPath === ""
-                   ? "No Obsidian vault found. Choose the folder your notes live in."
-                   : "Vault not found at " + root.vaultPath.replace(root.home, "~"))
-              color: root.dim
-              font.family: root.fontFamily
-              font.pixelSize: Style.font.caption
-              wrapMode: Text.WordWrap
-            }
-
-            // Typed rather than browsed on purpose. A native folder dialog
-            // pulls GTK3 and gvfs into the shell process, where a synchronous
-            // gvfs call aborts and takes the whole bar down with it.
-            TextField {
-              id: vaultField
-              visible: !root.vaultExists
-              width: parent.width
-              foreground: root.foreground
-              accent: root.accent
-              font.family: root.fontFamily
-              font.pixelSize: Style.font.body
-              placeholderText: "Path to your vault, e.g. ~/Notes"
-              onAccepted: {
-                root.chooseVault(text)
-                text = ""
-              }
-            }
+            text: root.vaultExists
+              ? "No open tasks in " + root.displayVault
+              : (root.vaultPath === "" ? "" : "Vault not found at " + root.displayVault)
+            color: root.dim
+            font.family: root.fontFamily
+            font.pixelSize: Style.font.caption
+            wrapMode: Text.WordWrap
           }
 
           PanelSeparator {

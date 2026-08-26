@@ -22,20 +22,25 @@ omarchy plugin add https://github.com/mjke87/obsidian-tasks.git --enable
 omarchy bar put avoby.tasks --section center
 ```
 
-**It finds your vault by itself.** With `vaultPath` unset, it reads the vault
-Obsidian currently has open from Obsidian's own registry
-(`~/.config/obsidian/obsidian.json`, or the Flatpak and Snap equivalents). No
-searching your filesystem — it just asks Obsidian where the vault is.
+**It finds your vault by itself, and shows you what it found.** With `vaultPath`
+unset, it reads the vault Obsidian currently has open from Obsidian's own
+registry (`~/.config/obsidian/obsidian.json`, or the Flatpak and Snap
+equivalents) — no searching your filesystem, it just asks Obsidian.
 
-Point it somewhere specific if you'd rather, or if you keep several vaults and
-don't want the widget following whichever one you last opened:
+The popup then shows that path in an editable field until you confirm it, so the
+widget works immediately without ever quietly deciding which folder it reads.
+Press Enter to keep it, or type a different path. Either way it's written to
+`vaultPath` and the field goes away.
+
+You can also set it directly, which skips the prompt entirely:
 
 ```bash
 omarchy bar set avoby.tasks vaultPath /path/to/your/vault
 ```
 
-If neither turns up a vault, the popup asks you to type the path. Changing any
-setting needs `omarchy restart shell` to take effect.
+Worth doing if you keep several vaults and don't want the widget following
+whichever one you last opened. Changing any setting needs `omarchy restart
+shell` to take effect.
 
 Requires `rg` and `python3`, both standard on Omarchy.
 
