@@ -243,7 +243,15 @@ def add(path, text):
     text, due = extract_due(" ".join(text.split()))
     if not text:
         return 1
-    os.makedirs(os.path.dirname(path), exist_ok=True)
+    parent = os.path.dirname(path)
+    # The caller is expected to have a real vault; if it doesn't, refuse rather
+    # than conjuring a directory tree somewhere nobody asked for.
+    if not parent or not os.path.isdir(os.path.dirname(parent) or "/"):
+        return 1
+    try:
+        os.makedirs(parent, exist_ok=True)
+    except OSError:
+        return 1
     existing = ""
     if os.path.exists(path):
         with open(path, encoding="utf-8") as handle:

@@ -175,7 +175,7 @@ Panel {
   }
 
   function addTask(text) {
-    if (editProc.running || String(text).trim() === "") return
+    if (!root.vaultExists || editProc.running || String(text).trim() === "") return
     editProc.mode = "add"
     editProc.subject = null
     editProc.command = [root.helper, "add", root.inboxPath, String(text)]
@@ -341,7 +341,7 @@ Panel {
       // hjkl drive the cursor, so capture lives behind "a" rather than
       // swallowing every letter the moment the panel opens.
       onTextKey: function (t) {
-        if (t === "a" || t === "A") addField.forceActiveFocus()
+        if (t === "a" || t === "A") { if (root.vaultExists) addField.forceActiveFocus() }
         else if (t === "r" || t === "R") root.refresh()
         else if (t === "e" || t === "E") {
           if (root.cursorActive) root.beginEdit(root.rows[root.cursor])
@@ -559,10 +559,14 @@ Panel {
             }
           }
 
-          PanelSeparator { width: parent.width }
+          PanelSeparator {
+            width: parent.width
+            visible: root.vaultExists
+          }
 
           TextField {
             id: addField
+            visible: root.vaultExists
             width: parent.width
             foreground: root.foreground
             accent: root.accent
