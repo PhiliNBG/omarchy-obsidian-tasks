@@ -27,6 +27,16 @@ omarchy bar put mjke87.obsidian-tasks --section center
 
 Requires `rg` and `python3`, both standard on Omarchy.
 
+To remove it:
+
+```bash
+omarchy plugin remove mjke87.obsidian-tasks
+```
+
+That takes the widget out of the bar and deletes the plugin. Your notes are
+untouched — the plugin only ever reads and writes markdown in the folder you
+point it at, and removing it leaves every task exactly where it is.
+
 ## First run
 
 **You have to tell it where your tasks are before it reads anything.** The popup
