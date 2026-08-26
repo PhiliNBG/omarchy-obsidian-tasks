@@ -10,11 +10,11 @@ import qs.Ui
 // The vault is the only state this widget has. Nothing is cached, so a task
 // added on a phone appears as soon as the next scan lands, and a task ticked
 // here is a rewritten line on disk that sync carries back out. Every read and
-// write goes through bin/omarchy-tasks; this file only decides what to show.
+// write goes through bin/obsidian-tasks; this file only decides what to show.
 Panel {
   id: root
-  moduleName: "avoby.tasks"
-  ipcTarget: "avoby.tasks"
+  moduleName: "mjke87.obsidian-tasks"
+  ipcTarget: "mjke87.obsidian-tasks"
 
   readonly property string glyphBar: String.fromCodePoint(0xF0139)
   readonly property string glyphOpen: String.fromCodePoint(0xF0131)
@@ -48,7 +48,7 @@ Panel {
   readonly property string countMode: String(setting("countMode", "all"))
   readonly property int refreshIntervalSec: Math.max(10, Number(setting("refreshIntervalSec", 60)))
   // Shipped beside the QML so the plugin stays one directory to install or remove.
-  readonly property string helper: Qt.resolvedUrl("bin/omarchy-tasks").toString().replace("file://", "")
+  readonly property string helper: Qt.resolvedUrl("bin/obsidian-tasks").toString().replace("file://", "")
 
   property var tasks: []
   property bool everScanned: false
@@ -235,7 +235,7 @@ Panel {
           root.vaultSource = String(found.source || "none")
           root.vaultExists = found.exists === true
         } catch (e) {
-          console.warn("avoby.tasks: could not resolve vault", e)
+          console.warn("mjke87.obsidian-tasks: could not resolve vault", e)
           root.vaultExists = false
         }
         if (vaultProc.ranWith !== root.vaultHint) Qt.callLater(root.resolveVault)
@@ -262,7 +262,7 @@ Panel {
           var parsed = JSON.parse(String(text || "[]"))
           root.tasks = Array.isArray(parsed) ? parsed : []
         } catch (e) {
-          console.warn("avoby.tasks: could not parse scan output", e)
+          console.warn("mjke87.obsidian-tasks: could not parse scan output", e)
           root.tasks = []
         }
         root.everScanned = true

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "id": "avoby.tasks",
-  "name": "Tasks",
+  "id": "mjke87.obsidian-tasks",
+  "name": "Obsidian Tasks",
   "version": "1.0.0",
   "author": "Mike Jarrett",
   "license": "MIT",
@@ -13,7 +13,7 @@
     "barWidget": "Panel.qml"
   },
   "barWidget": {
-    "displayName": "Tasks",
+    "displayName": "Obsidian Tasks",
     "description": "Counts open Obsidian Tasks checkboxes across a vault and lists them in a popup, with click-to-complete and quick add. Reads plain markdown, so anything that syncs the vault keeps it current.",
     "category": "Productivity",
     "allowMultiple": false,

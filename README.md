@@ -19,7 +19,7 @@ The vault is the only state — no database, no account, no cache:
 
 ```bash
 omarchy plugin add https://github.com/mjke87/obsidian-tasks.git --enable
-omarchy bar put avoby.tasks --section center
+omarchy bar put mjke87.obsidian-tasks --section center
 ```
 
 **It finds your vault by itself, and shows you what it found.** With `vaultPath`
@@ -36,7 +36,7 @@ popup's top right, where you can change it any time.
 You can also set it directly, which skips the prompt entirely:
 
 ```bash
-omarchy bar set avoby.tasks vaultPath /path/to/your/vault
+omarchy bar set mjke87.obsidian-tasks vaultPath /path/to/your/vault
 ```
 
 Worth doing if you keep several vaults and don't want the widget following
@@ -116,5 +116,5 @@ phantom tasks that appear in no note you can find.
 
 ## How it works
 
-`Panel.qml` decides what to show; `bin/omarchy-tasks` does every read and write,
+`Panel.qml` decides what to show; `bin/obsidian-tasks` does every read and write,
 with `complete`, `uncomplete` and `rename` sharing one line-rewrite primitive.
