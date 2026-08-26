@@ -11,7 +11,8 @@ The vault is the only state — no database, no account, no cache:
   TaskForge; they reach the bar as soon as sync lands them.
 - **Tasks live next to their context.** Obsidian Tasks is built for a `- [ ]`
   line written wherever you are — a meeting note, a project page, a daily note.
-  The widget scans the whole vault, so there's no need to herd them into one file.
+  The widget scans everything under the folder you point it at, so there's no
+  need to herd them into one file.
 - **This is a view, not the system of record.** Obsidian, a phone app and a text
   editor are equally valid ways to change a task. Nothing here owns the data.
 
@@ -22,31 +23,29 @@ omarchy plugin add https://github.com/mjke87/obsidian-tasks.git --enable
 omarchy bar put mjke87.obsidian-tasks --section center
 ```
 
-**It suggests your vault, but waits to be told.** On first open the popup shows
-a path field and no tasks. The field is pre-filled with the vault Obsidian
-currently has open, read from Obsidian's own registry
-(`~/.config/obsidian/obsidian.json`, or the Flatpak and Snap equivalents) — no
-searching your filesystem, it just asks Obsidian.
+Requires `rg` and `python3`, both standard on Omarchy.
 
-Nothing is read or stored until you save that path. Press Enter to accept the
-suggestion, or type your own; closing the popup instead discards it and changes
-nothing. Once saved, tasks appear and the field moves behind the gear in the
-popup's top right, where you can change it any time.
+## First run
 
-Point it at a whole vault or at one folder inside it — whatever you give it is
-the root of the scan.
+**You have to tell it where your tasks are before it reads anything.** The popup
+opens with a path field and no tasks, pre-filled with the vault Obsidian has
+open — read from its registry (`~/.config/obsidian/obsidian.json`, or the
+Flatpak and Snap equivalents), not by searching your filesystem. That's a
+suggestion, nothing more.
 
-You can also set it directly, which skips the prompt entirely:
+Enter accepts it, or type your own. Closing the popup discards it and stores
+nothing; only saving makes the widget read the folder. Point it at a whole vault
+or one folder inside it — whatever you give it is the scan root, and tasks
+outside it won't appear.
+
+The field then moves behind the **⚙ gear** in the popup's top right, to change
+folder any time. Or set it from the shell and skip the prompt:
 
 ```bash
 omarchy bar set mjke87.obsidian-tasks vaultPath /path/to/your/vault
 ```
 
-Worth doing if you keep several vaults and don't want the widget following
-whichever one you last opened. Changing any setting needs `omarchy restart
-shell` to take effect.
-
-Requires `rg` and `python3`, both standard on Omarchy.
+Changing any setting needs `omarchy restart shell` to take effect.
 
 ## Format
 
@@ -75,14 +74,13 @@ call bank 2026-09-01   →  - [ ] call bank 📅 2026-09-01
 Understood: `today`, `tomorrow`, `next week`, a weekday name, `in N days`,
 `in N weeks`, `YYYY-MM-DD`. Naming today's weekday means the next one. Renaming a
 task parses dates the same way — that's how you change an existing due date.
-
-**English only.** `steuern morgen` gets no date and keeps its text; `YYYY-MM-DD`
-works in any language.
+**English only**: `steuern morgen` keeps its text; `YYYY-MM-DD` works anywhere.
 
 Two rules stop it rewriting what a task says: only *trailing* phrases count
-(`friday night drinks` keeps its wording), and short weekday forms need an
-explicit `on` or `next` (`photograph the sun` keeps its last word, `retro on
-weds` gets a date).
+(`friday night drinks` keeps its wording), and short weekday forms need an `on`
+or `next` (`photograph the sun` keeps its last word, `retro on weds` gets a
+date). The phrase is removed whole, so a preposition leading into it stays
+behind — `some new tasks for today` becomes `some new tasks for`, dated today.
 
 ## Sync
 
