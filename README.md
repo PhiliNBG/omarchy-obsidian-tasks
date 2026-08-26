@@ -16,7 +16,7 @@ and with any app that reads the same format, including TaskForge on Android.
 ## Install
 
 ```bash
-omarchy plugin add https://github.com/<you>/omarchy-tasks.git --enable
+omarchy plugin add https://github.com/mjke87/obsidian-tasks.git --enable
 omarchy bar put avoby.tasks --section right
 ```
 
