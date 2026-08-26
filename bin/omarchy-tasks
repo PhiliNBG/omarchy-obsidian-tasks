@@ -1,0 +1,122 @@
+#!/usr/bin/env python3
+"""Read and edit Obsidian Tasks-format checkboxes in a vault.
+
+Kept deliberately small: the QML widget owns presentation, this owns every
+touch of the vault. Writes are compare-and-swap on the exact line text rather
+than positional, because Obsidian Sync can rewrite a file between the scan
+that drew the list and the click that completes a task.
+"""
+import json
+import os
+import re
+import subprocess
+import sys
+from datetime import date
+
+DUE, DONE, CREATED, SCHEDULED, START = "\U0001F4C5", "✅", "➕", "⏳", "\U0001F6EB"
+PRIORITY = {"\U0001F53A": 0, "\U000023EB": 1, "\U0001F53C": 2, "\U0001F53D": 4, "\U000023EC": 5}
+# Any date-bearing or standalone signifier, used to strip metadata off the label.
+SIGNIFIERS = [DUE, DONE, CREATED, SCHEDULED, START, "❌", "\U0001F501", "\U0001F194", "⛔"]
+TASK_RE = re.compile(r"^(?P<indent>\s*)(?P<bullet>[-*+])\s\[(?P<status>.)\]\s(?P<body>.*)$")
+DATE_RE = r"(\d{4}-\d{2}-\d{2})"
+EXCLUDES = ["!.obsidian", "!.trash", "!Templates", "!.git"]
+
+
+def scan(vault):
+    args = ["rg", "--no-heading", "--with-filename", "--line-number", "--no-messages",
+            "-e", r"^\s*[-*+] \[.\] "]
+    for glob in EXCLUDES:
+        args += ["-g", glob]
+    args.append(vault)
+    try:
+        out = subprocess.run(args, capture_output=True, text=True, timeout=10).stdout
+    except (OSError, subprocess.SubprocessError):
+        return []
+
+    tasks = []
+    for entry in out.splitlines():
+        path, _, rest = entry.partition(":")
+        lineno, _, raw = rest.partition(":")
+        match = TASK_RE.match(raw)
+        if not match:
+            continue
+        body, status = match.group("body"), match.group("status")
+
+        due = re.search(re.escape(DUE) + r"\s*" + DATE_RE, body)
+        priority = next((rank for glyph, rank in PRIORITY.items() if glyph in body), 3)
+
+        label = body
+        for glyph in SIGNIFIERS:
+            label = re.sub(re.escape(glyph) + r"\s*" + DATE_RE + r"?", "", label)
+        for glyph in PRIORITY:
+            label = label.replace(glyph, "")
+
+        tasks.append({
+            "file": path,
+            "line": int(lineno) if lineno.isdigit() else 0,
+            "raw": raw,
+            "label": " ".join(label.split()),
+            "due": due.group(1) if due else "",
+            "priority": priority,
+            "open": status == " ",
+            "vaultPath": os.path.relpath(path, vault),
+        })
+    return tasks
+
+
+def complete(path, exact):
+    """Tick the first line matching `exact`. No match means the vault moved
+    under us, which is a no-op rather than a guess at which line was meant."""
+    with open(path, encoding="utf-8") as handle:
+        lines = handle.read().split("\n")
+    for index, line in enumerate(lines):
+        if line != exact:
+            continue
+        match = TASK_RE.match(line)
+        if not match or match.group("status") != " ":
+            return 1
+        body = match.group("body").rstrip()
+        if DONE not in body:
+            body = f"{body} {DONE} {date.today().isoformat()}"
+        lines[index] = f'{match.group("indent")}{match.group("bullet")} [x] {body}'
+        with open(path, "w", encoding="utf-8") as handle:
+            handle.write("\n".join(lines))
+        return 0
+    return 1
+
+
+def add(path, text):
+    text = " ".join(text.split())
+    if not text:
+        return 1
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    existing = ""
+    if os.path.exists(path):
+        with open(path, encoding="utf-8") as handle:
+            existing = handle.read()
+    # TaskForge left its file without a trailing newline; appending blind would
+    # weld the new task onto the last one and lose both.
+    prefix = "" if (not existing or existing.endswith("\n")) else "\n"
+    with open(path, "a", encoding="utf-8") as handle:
+        handle.write(f"{prefix}- [ ] {text} {CREATED} {date.today().isoformat()}\n")
+    return 0
+
+
+def main():
+    if len(sys.argv) < 3:
+        print("usage: omarchy-tasks scan <vault> | complete <file> <line> | add <file> <text>",
+              file=sys.stderr)
+        return 2
+    action = sys.argv[1]
+    if action == "scan":
+        json.dump(scan(sys.argv[2]), sys.stdout)
+        return 0
+    if action == "complete" and len(sys.argv) >= 4:
+        return complete(sys.argv[2], sys.argv[3])
+    if action == "add" and len(sys.argv) >= 4:
+        return add(sys.argv[2], " ".join(sys.argv[3:]))
+    return 2
+
+
+if __name__ == "__main__":
+    sys.exit(main())
