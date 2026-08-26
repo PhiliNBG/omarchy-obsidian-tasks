@@ -81,6 +81,54 @@ def strip_signifier(metadata, glyph, dated=True):
     return " ".join(re.sub(pattern, "", metadata).split())
 
 
+# ------------------------------------------------------------- vault discovery
+
+# Obsidian keeps its own registry of the vaults you have opened. Reading it is
+# not a search of your filesystem: it is one config file, written by Obsidian,
+# naming exactly the folders you already told it about.
+OBSIDIAN_CONFIGS = [
+    "~/.config/obsidian/obsidian.json",
+    "~/.var/app/md.obsidian.Obsidian/config/obsidian.json",
+    "~/snap/obsidian/current/.config/obsidian/obsidian.json",
+]
+
+
+def obsidian_vault():
+    """The vault Obsidian currently has open, else its most recently used."""
+    for candidate in OBSIDIAN_CONFIGS:
+        path = os.path.expanduser(candidate)
+        if not os.path.isfile(path):
+            continue
+        try:
+            with open(path, encoding="utf-8") as handle:
+                vaults = json.load(handle).get("vaults", {})
+        except (OSError, ValueError):
+            continue
+        entries = [v for v in vaults.values() if isinstance(v, dict) and v.get("path")]
+        if not entries:
+            continue
+        entries.sort(key=lambda v: (bool(v.get("open")), v.get("ts", 0)), reverse=True)
+        for entry in entries:
+            if os.path.isdir(entry["path"]):
+                return entry["path"]
+    return ""
+
+
+def resolve_vault(hint):
+    """Where to look for tasks, and how we decided.
+
+    An explicit setting always wins, even when it points nowhere — a typo should
+    surface as a missing vault, not be silently overridden by a lucky guess.
+    """
+    hint = os.path.expanduser(hint or "").rstrip("/")
+    if hint:
+        return {"path": hint, "source": "config", "exists": os.path.isdir(hint)}
+    found = obsidian_vault()
+    if found:
+        return {"path": found, "source": "obsidian", "exists": True}
+    return {"path": "", "source": "none", "exists": False}
+
+
 # ------------------------------------------------------------------- commands
 
 def scan(vault):
@@ -213,13 +261,17 @@ def add(path, text):
 
 
 def main():
-    if len(sys.argv) < 3:
-        print("usage: omarchy-tasks scan <vault> | complete|uncomplete <file> <line> "
-              "| rename <file> <line> <text> | add <file> <text>", file=sys.stderr)
+    if len(sys.argv) < 2:
+        print("usage: omarchy-tasks vault [hint] | scan <vault> "
+              "| complete|uncomplete <file> <line> | rename <file> <line> <text> "
+              "| add <file> <text>", file=sys.stderr)
         return 2
     action, args = sys.argv[1], sys.argv[2:]
+    if action == "vault":
+        json.dump(resolve_vault(args[0] if args else ""), sys.stdout)
+        return 0
     if action == "scan":
-        json.dump(scan(args[0]), sys.stdout)
+        json.dump(scan(args[0]) if os.path.isdir(args[0]) else [], sys.stdout)
         return 0
     if action == "complete" and len(args) >= 2:
         return complete(args[0], args[1])

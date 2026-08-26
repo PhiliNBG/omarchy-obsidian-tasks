@@ -20,12 +20,22 @@ The vault is the only state — no database, no account, no cache:
 ```bash
 omarchy plugin add https://github.com/mjke87/obsidian-tasks.git --enable
 omarchy bar put avoby.tasks --section center
+```
+
+**It finds your vault by itself.** With `vaultPath` unset, it reads the vault
+Obsidian currently has open from Obsidian's own registry
+(`~/.config/obsidian/obsidian.json`, or the Flatpak and Snap equivalents). No
+searching your filesystem — it just asks Obsidian where the vault is.
+
+Point it somewhere specific if you'd rather, or if you keep several vaults and
+don't want the widget following whichever one you last opened:
+
+```bash
 omarchy bar set avoby.tasks vaultPath /path/to/your/vault
 ```
 
-**Point it at your vault** with that third command — it defaults to `~/Notes`,
-which is almost certainly not where yours lives. Everything else has a sensible
-default; see [Settings](#settings).
+If neither turns up a vault, the popup offers a folder picker. Changing any
+setting needs `omarchy restart shell` to take effect.
 
 Requires `rg` and `python3`, both standard on Omarchy.
 
@@ -84,7 +94,7 @@ From the widget's entry in `~/.config/omarchy/shell.json`:
 
 | Key | Default | What it does |
 |---|---|---|
-| `vaultPath` | `~/Notes` | Folder scanned for checkboxes |
+| `vaultPath` | *(auto)* | Folder scanned for checkboxes; empty means ask Obsidian |
 | `inboxFile` | `Tasks/Inbox.md` | Where the add box appends, relative to the vault |
 | `countMode` | `all` | `all` lights the icon for any open task; `due` only for today or earlier |
 | `refreshIntervalSec` | `60` | Rescan interval |

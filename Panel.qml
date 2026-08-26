@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import Quickshell
 import Quickshell.Io
+import QtQuick.Dialogs
 import qs.Commons
 import qs.Ui
 
@@ -21,7 +22,12 @@ Panel {
   readonly property string glyphDone: String.fromCodePoint(0xF0132)
 
   readonly property string home: Quickshell.env("HOME") || ""
-  readonly property string vaultPath: expand(String(setting("vaultPath", "~/Notes")))
+  // The configured path, if any. Resolution lives in the helper: an explicit
+  // setting wins, otherwise Obsidian's own vault registry is asked.
+  readonly property string vaultHint: String(setting("vaultPath", ""))
+  property string vaultPath: ""
+  property string vaultSource: "none"
+  property bool vaultExists: false
   readonly property string inboxPath: vaultPath + "/" + String(setting("inboxFile", "Tasks/Inbox.md"))
   readonly property string countMode: String(setting("countMode", "all"))
   readonly property int refreshIntervalSec: Math.max(10, Number(setting("refreshIntervalSec", 60)))
@@ -86,7 +92,28 @@ Panel {
   }
 
   function refresh() {
+    if (!root.vaultExists || root.vaultPath === "") {
+      root.tasks = []
+      root.everScanned = true
+      return
+    }
     if (!scanProc.running) scanProc.running = true
+  }
+
+  function resolveVault() {
+    if (vaultProc.running) return
+    vaultProc.ranWith = root.vaultHint
+    vaultProc.command = [root.helper, "vault", root.vaultHint]
+    vaultProc.running = true
+  }
+
+  function chooseVault(url) {
+    var path = String(url || "").replace(/^file:\/\//, "")
+    if (path === "") return
+    // Written through `omarchy bar set` rather than by editing shell.json here,
+    // so the setting lands the same way it would if typed by hand.
+    setVaultProc.command = ["omarchy", "bar", "set", root.moduleName, "vaultPath", path]
+    setVaultProc.running = true
   }
 
   function completeTask(task) {
@@ -172,6 +199,44 @@ Panel {
   }
 
   onRowsChanged: if (cursor >= rows.length) cursor = Math.max(0, rows.length - 1)
+
+  Process {
+    id: vaultProc
+    // The hint this run was started with. The bar injects settings after the
+    // component is built, so the first resolve necessarily runs against an
+    // empty one; without this the answer to a question nobody asked would win.
+    property string ranWith: ""
+    stdout: StdioCollector {
+      waitForEnd: true
+      onStreamFinished: {
+        try {
+          var found = JSON.parse(String(text || "{}"))
+          root.vaultPath = String(found.path || "")
+          root.vaultSource = String(found.source || "none")
+          root.vaultExists = found.exists === true
+        } catch (e) {
+          console.warn("avoby.tasks: could not resolve vault", e)
+          root.vaultExists = false
+        }
+        if (vaultProc.ranWith !== root.vaultHint) Qt.callLater(root.resolveVault)
+        else root.refresh()
+      }
+    }
+  }
+
+  Process {
+    id: setVaultProc
+    onExited: root.resolveVault()
+  }
+
+  onVaultHintChanged: root.resolveVault()
+  Component.onCompleted: root.resolveVault()
+
+  FolderDialog {
+    id: vaultPicker
+    title: "Choose your Obsidian vault"
+    onAccepted: root.chooseVault(selectedFolder)
+  }
 
   Process {
     id: scanProc
@@ -465,14 +530,33 @@ Panel {
             }
           }
 
-          Text {
+          Column {
             width: parent.width
             visible: root.everScanned && root.rows.length === 0
-            text: "No open tasks in " + root.vaultPath.replace(root.home, "~")
-            color: root.dim
-            font.family: root.fontFamily
-            font.pixelSize: Style.font.caption
-            wrapMode: Text.WordWrap
+            spacing: Style.space(8)
+
+            Text {
+              width: parent.width
+              text: root.vaultExists
+                ? "No open tasks in " + root.vaultPath.replace(root.home, "~")
+                : (root.vaultPath === ""
+                   ? "No Obsidian vault found. Choose the folder your notes live in."
+                   : "Vault not found at " + root.vaultPath.replace(root.home, "~"))
+              color: root.dim
+              font.family: root.fontFamily
+              font.pixelSize: Style.font.caption
+              wrapMode: Text.WordWrap
+            }
+
+            Button {
+              visible: !root.vaultExists
+              text: "Choose vault…"
+              bordered: true
+              foreground: root.foreground
+              accent: root.accent
+              fontFamily: root.fontFamily
+              onClicked: vaultPicker.open()
+            }
           }
 
           PanelSeparator { width: parent.width }

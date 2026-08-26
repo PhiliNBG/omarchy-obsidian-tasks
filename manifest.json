@@ -19,7 +19,7 @@
     "allowMultiple": false,
     "defaultSection": "center",
     "defaults": {
-      "vaultPath": "~/Notes",
+      "vaultPath": "",
       "inboxFile": "Tasks/Inbox.md",
       "countMode": "all",
       "refreshIntervalSec": 60
@@ -29,8 +29,8 @@
         "key": "vaultPath",
         "type": "string",
         "label": "Vault path",
-        "defaultValue": "~/Notes",
-        "description": "Folder scanned for markdown checkboxes. .obsidian, .trash, .git and Templates are always skipped."
+        "defaultValue": "",
+        "description": "Folder scanned for markdown checkboxes. Left empty, the vault Obsidian currently has open is used. .obsidian, .trash, .git and Templates are always skipped."
       },
       {
         "key": "inboxFile",
