@@ -20,7 +20,12 @@ The vault is the only state — no database, no account, no cache:
 ```bash
 omarchy plugin add https://github.com/mjke87/obsidian-tasks.git --enable
 omarchy bar put avoby.tasks --section center
+omarchy bar set avoby.tasks vaultPath /path/to/your/vault
 ```
+
+**Point it at your vault** with that third command — it defaults to `~/Notes`,
+which is almost certainly not where yours lives. Everything else has a sensible
+default; see [Settings](#settings).
 
 Requires `rg` and `python3`, both standard on Omarchy.
 
