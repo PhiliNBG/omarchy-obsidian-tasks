@@ -28,7 +28,11 @@ Panel {
   property string vaultPath: ""
   property string vaultSource: "none"
   property bool vaultExists: false
-  readonly property string inboxPath: vaultPath + "/" + String(setting("inboxFile", "Tasks/Inbox.md"))
+  // Empty without a vault, rather than a relative path left dangling off the
+  // filesystem root: the bad value shouldn't be constructible in the first place.
+  readonly property string inboxPath: root.vaultExists
+    ? vaultPath + "/" + String(setting("inboxFile", "Inbox.md"))
+    : ""
   readonly property string countMode: String(setting("countMode", "all"))
   readonly property int refreshIntervalSec: Math.max(10, Number(setting("refreshIntervalSec", 60)))
   // Shipped beside the QML so the plugin stays one directory to install or remove.

@@ -20,7 +20,7 @@
     "defaultSection": "center",
     "defaults": {
       "vaultPath": "",
-      "inboxFile": "Tasks/Inbox.md",
+      "inboxFile": "Inbox.md",
       "countMode": "all",
       "refreshIntervalSec": 60
     },
@@ -36,8 +36,8 @@
         "key": "inboxFile",
         "type": "string",
         "label": "Quick-add file",
-        "defaultValue": "Tasks/Inbox.md",
-        "description": "Where the quick-add box appends new tasks, relative to the vault. Created on first use."
+        "defaultValue": "Inbox.md",
+        "description": "Where the add box appends new tasks, relative to the vault. Created on first use; a path with folders in it, like Tasks/Inbox.md, creates them. Only affects new tasks — existing ones are found anywhere in the vault."
       },
       {
         "key": "countMode",

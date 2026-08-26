@@ -95,7 +95,7 @@ From the widget's entry in `~/.config/omarchy/shell.json`:
 | Key | Default | What it does |
 |---|---|---|
 | `vaultPath` | *(auto)* | Folder scanned for checkboxes; empty means ask Obsidian |
-| `inboxFile` | `Tasks/Inbox.md` | Where the add box appends, relative to the vault |
+| `inboxFile` | `Inbox.md` | Where *new* tasks are appended, relative to the vault |
 | `countMode` | `all` | `all` lights the icon for any open task; `due` only for today or earlier |
 | `refreshIntervalSec` | `60` | Rescan interval |
 
