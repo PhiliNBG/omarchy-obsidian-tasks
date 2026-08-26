@@ -35,10 +35,14 @@ Panel {
   // whole point and stands on its own.
   property bool settingsOpen: false
   readonly property bool vaultRowVisible: root.vaultUnconfigured || root.settingsOpen
+  // Detection only ever supplies a suggested value for the field. Nothing is
+  // read or written until that path has been saved, so the widget never acts
+  // on a folder the user hasn't agreed to.
+  readonly property bool vaultActive: !root.vaultUnconfigured && root.vaultExists
   readonly property string displayVault: vaultPath === "" ? "" : vaultPath.replace(root.home, "~")
   // Empty without a vault, rather than a relative path left dangling off the
   // filesystem root: the bad value shouldn't be constructible in the first place.
-  readonly property string inboxPath: root.vaultExists
+  readonly property string inboxPath: root.vaultActive
     ? vaultPath + "/" + String(setting("inboxFile", "Inbox.md"))
     : ""
   readonly property string countMode: String(setting("countMode", "all"))
@@ -78,6 +82,8 @@ Panel {
   })
 
   readonly property string summary: {
+    if (root.vaultUnconfigured) return "No vault set"
+    if (!root.vaultExists) return "Vault not found"
     if (!everScanned) return "Reading vault…"
     if (openTasks.length === 0) return "Nothing open"
     var line = openTasks.length + (openTasks.length === 1 ? " open task" : " open tasks")
@@ -104,7 +110,7 @@ Panel {
   }
 
   function refresh() {
-    if (!root.vaultExists || root.vaultPath === "") {
+    if (!root.vaultActive) {
       root.tasks = []
       root.everScanned = true
       return
@@ -188,7 +194,7 @@ Panel {
   }
 
   function addTask(text) {
-    if (!root.vaultExists || editProc.running || String(text).trim() === "") return
+    if (!root.vaultActive || editProc.running || String(text).trim() === "") return
     editProc.mode = "add"
     editProc.subject = null
     editProc.command = [root.helper, "add", root.inboxPath, String(text)]
@@ -349,7 +355,7 @@ Panel {
       // hjkl drive the cursor, so capture lives behind "a" rather than
       // swallowing every letter the moment the panel opens.
       onTextKey: function (t) {
-        if (t === "a" || t === "A") { if (root.vaultExists) addField.forceActiveFocus() }
+        if (t === "a" || t === "A") { if (root.vaultActive) addField.forceActiveFocus() }
         else if (t === "r" || t === "R") root.refresh()
         else if (t === "e" || t === "E") {
           if (root.cursorActive) root.beginEdit(root.rows[root.cursor])
@@ -455,7 +461,7 @@ Panel {
                 ? "Vault — Enter to change it."
                 : (root.vaultPath === ""
                    ? "Where do your notes live?"
-                   : "Using the vault Obsidian has open. Enter to keep it.")
+                   : "Found Obsidian's vault. Enter to use it.")
               color: root.dim
               font.family: root.fontFamily
               font.pixelSize: Style.font.caption
@@ -479,6 +485,11 @@ Panel {
                 target: root
                 function onDisplayVaultChanged() {
                   if (!vaultField.activeFocus) vaultField.text = root.displayVault
+                }
+                // Closing without saving discards the edit, so reopening offers
+                // the suggestion again rather than yesterday's abandoned typing.
+                function onOpenedChanged() {
+                  if (root.opened) vaultField.text = root.displayVault
                 }
               }
             }
@@ -603,10 +614,10 @@ Panel {
 
           Text {
             width: parent.width
-            visible: root.everScanned && root.rows.length === 0
+            visible: !root.vaultUnconfigured && root.everScanned && root.rows.length === 0
             text: root.vaultExists
               ? "No open tasks in " + root.displayVault
-              : (root.vaultPath === "" ? "" : "Vault not found at " + root.displayVault)
+              : "Vault not found at " + root.displayVault
             color: root.dim
             font.family: root.fontFamily
             font.pixelSize: Style.font.caption
@@ -615,12 +626,12 @@ Panel {
 
           PanelSeparator {
             width: parent.width
-            visible: root.vaultExists
+            visible: root.vaultActive
           }
 
           TextField {
             id: addField
-            visible: root.vaultExists
+            visible: root.vaultActive
             width: parent.width
             foreground: root.foreground
             accent: root.accent
