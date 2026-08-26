@@ -1,51 +1,34 @@
 # Tasks
 
-Open [Obsidian Tasks](https://publish.obsidian.md/tasks/) checkboxes from a local
-vault, in the Omarchy bar.
+[Obsidian Tasks](https://publish.obsidian.md/tasks/) checkboxes in the Omarchy
+bar: an icon that lights while something is open, and a popup to work through them.
 
-The bar shows a single icon, lit while anything is open and dimmed when nothing
-is. Click it for the list — a count sits under the title. Tick a task's box to
-complete it, click its text to rename it in place, or type in the box at the
-bottom to add one.
+## How it's meant to be used
 
-A ticked task stays on screen struck through for a moment before it goes, and
-clicking its box again in that window puts it back. Nothing is cached: the
-vault is the only state, so a task added on a phone shows up here as soon as the
-next scan lands, and a task ticked here is a rewritten markdown line that sync
-carries back out.
+The vault is the only state — no database, no account, no cache:
 
-Works with anything that keeps the vault current — Obsidian Sync, Syncthing, git —
-and with any app that reads the same format, including TaskForge on Android.
+- **Capture anywhere, tick off here.** Add tasks on your phone in Obsidian or
+  TaskForge; they reach the bar as soon as sync lands them.
+- **Tasks live next to their context.** Obsidian Tasks is built for a `- [ ]`
+  line written wherever you are — a meeting note, a project page, a daily note.
+  The widget scans the whole vault, so there's no need to herd them into one file.
+- **This is a view, not the system of record.** Obsidian, a phone app and a text
+  editor are equally valid ways to change a task. Nothing here owns the data.
 
 ## Install
 
 ```bash
 omarchy plugin add https://github.com/mjke87/obsidian-tasks.git --enable
-omarchy bar put avoby.tasks --section right
+omarchy bar put avoby.tasks --section center
 ```
 
-Requires `rg` (ripgrep) and `python3`, both standard on Omarchy.
-
-## Settings
-
-Set from the widget's entry in `~/.config/omarchy/shell.json`:
-
-| Key | Default | What it does |
-|---|---|---|
-| `vaultPath` | `~/Notes` | Folder scanned for checkboxes |
-| `inboxFile` | `Tasks/Inbox.md` | Where quick-add appends, relative to the vault |
-| `countMode` | `all` | `all` lights the icon for any open task; `due` only for tasks dated today or earlier |
-| `refreshIntervalSec` | `60` | Rescan interval; the popup also rescans on open |
-
-`.obsidian`, `.trash`, `.git` and `Templates` are always skipped. Excluding
-`Templates` matters more than it looks: a daily-note template containing `- [ ]`
-placeholders otherwise inflates the count on every scan, and the phantom tasks
-appear in no note you can find.
+Requires `rg` and `python3`, both standard on Omarchy.
 
 ## Format
 
 Standard Obsidian Tasks emoji syntax. Due dates (`📅`) and priorities
-(`🔺⏫🔼🔽⏬`) are read; everything else is left alone and preserved on write.
+(`🔺⏫🔼🔽⏬`) are read and sorted on; every other signifier is preserved
+untouched, so an edit can't quietly drop metadata this widget doesn't read.
 
 ```markdown
 - [ ] Renew car insurance 📅 2026-08-30
@@ -53,51 +36,64 @@ Standard Obsidian Tasks emoji syntax. Due dates (`📅`) and priorities
 - [x] Book dentist ✅ 2026-08-25
 ```
 
-Completing a task rewrites the line in place, appending `✅` and today's date.
+Ticking a task rewrites its line in place and stamps `✅` with today's date.
 
 ## Dates
 
-A trailing date phrase in the add box becomes a due date, and is taken out of the
-task text:
+A trailing date phrase in the add box becomes a due date and leaves the task text:
 
 ```
 pay rent friday        →  - [ ] pay rent 📅 2026-08-28
 review pr in 3 days    →  - [ ] review pr 📅 2026-08-29
-ship it next week      →  - [ ] ship it 📅 2026-09-02
 call bank 2026-09-01   →  - [ ] call bank 📅 2026-09-01
 ```
 
 Understood: `today`, `tomorrow`, `next week`, a weekday name, `in N days`,
-`in N weeks`, and an explicit `YYYY-MM-DD`. Naming today's weekday means the next
-one, not today.
+`in N weeks`, `YYYY-MM-DD`. Naming today's weekday means the next one. Renaming a
+task parses dates the same way — that's how you change an existing due date.
 
-**English only.** Keywords and weekday names are a hardcoded English list, so
-`steuern morgen` or `payer loyer vendredi` simply get no date and keep their text.
-`YYYY-MM-DD` works in any language.
+**English only.** `steuern morgen` gets no date and keeps its text; `YYYY-MM-DD`
+works in any language.
 
-Two rules keep it from rewriting what a task says. Only a *trailing* phrase
-counts, so `friday night drinks` keeps its wording. And short weekday forms need
-an explicit `on` or `next` — `on fri` sets a date, bare `sun` does not, because
-`photograph the sun` should keep its last word. Full names stand alone.
+Two rules stop it rewriting what a task says: only *trailing* phrases count
+(`friday night drinks` keeps its wording), and short weekday forms need an
+explicit `on` or `next` (`photograph the sun` keeps its last word, `retro on
+weds` gets a date).
 
-Renaming a task reads dates the same way.
+## Sync
+
+Nothing here touches a network. The widget reads and writes files in a folder;
+keeping that folder current is someone else's job, and Obsidian Sync, Syncthing,
+git and Dropbox all do it.
+
+Because sync can rewrite a file at any moment, writes match on the **exact line
+text**, never a line number — if the line moved since the scan that drew the row,
+the write is a no-op rather than a guess.
+
+The vault is rescanned every 60s and whenever the popup opens, so a task added on
+a phone surfaces within a minute.
+
+## Settings
+
+From the widget's entry in `~/.config/omarchy/shell.json`:
+
+| Key | Default | What it does |
+|---|---|---|
+| `vaultPath` | `~/Notes` | Folder scanned for checkboxes |
+| `inboxFile` | `Tasks/Inbox.md` | Where the add box appends, relative to the vault |
+| `countMode` | `all` | `all` lights the icon for any open task; `due` only for today or earlier |
+| `refreshIntervalSec` | `60` | Rescan interval |
+
+`.obsidian`, `.trash`, `.git` and `Templates` are always skipped — a daily-note
+template full of `- [ ]` placeholders would otherwise inflate the count with
+phantom tasks that appear in no note you can find.
 
 ## Keys
 
-With the popup open: `j`/`k` or arrows move, `Enter` ticks or unticks, `e` edits
-the task under the cursor, `a` jumps to the add box, `r` rescans, `Esc` closes.
+`j`/`k` move, `Enter` ticks or unticks, `e` edits the task under the cursor,
+`a` jumps to the add box, `r` rescans, `Esc` closes.
 
 ## How it works
 
-`Panel.qml` decides what to show. Every read and write goes through
-`bin/omarchy-tasks`, a small Python helper — `scan` emits JSON; `complete`,
-`uncomplete` and `rename` each rewrite one line; `add` appends one.
-
-The three rewrites share a single primitive that splits a task into description
-and metadata at the first Obsidian Tasks signifier, so an edit changes only what
-it means to and leaves `📅`, `⏫` and anything else it doesn't understand intact.
-
-Writes are compare-and-swap on the exact line text rather than on a line number,
-because sync can rewrite a file between the scan that drew a row and the click
-that completes it. If the line has moved, the write is a no-op rather than a
-guess at which line was meant.
+`Panel.qml` decides what to show; `bin/omarchy-tasks` does every read and write,
+with `complete`, `uncomplete` and `rename` sharing one line-rewrite primitive.
