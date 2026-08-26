@@ -125,12 +125,20 @@ Panel {
     root.editingRaw = task.raw
   }
 
+  // Leaving edit mode has to outlive the keystroke that ended it. Clearing
+  // editingRaw synchronously unblocks the key catcher while that same Enter or
+  // Escape is still propagating, and the catcher then reads it as "tick this
+  // task" or "close the panel". Let the event finish first.
+  function endEdit() {
+    Qt.callLater(function () { root.editingRaw = "" })
+  }
+
   function cancelEdit() {
-    root.editingRaw = ""
+    endEdit()
   }
 
   function renameTask(task, text) {
-    root.editingRaw = ""
+    endEdit()
     if (!task || editProc.running) return
     if (String(text).trim() === "" || String(text).trim() === task.label) return
     editProc.mode = "rename"
