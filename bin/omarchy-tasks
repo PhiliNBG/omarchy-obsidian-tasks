@@ -66,7 +66,7 @@ def rewrite(path, exact, transform):
             return 1
         status, description, metadata = result
         body = " ".join(part for part in (description, metadata) if part)
-        lines[index] = f'{match.group("indent")}{match.group("bullet")} [{status}] {body}'
+        lines[index] = f'{match.group("indent")}{match.group("bullet")} [{status}] {body}'.rstrip()
         with open(path, "w", encoding="utf-8") as handle:
             handle.write("\n".join(lines))
         # Echoed so the caller can address the line it just created — undo needs
@@ -200,12 +200,15 @@ def add(path, text):
     if os.path.exists(path):
         with open(path, encoding="utf-8") as handle:
             existing = handle.read()
-    # TaskForge leaves its file without a trailing newline; appending blind
-    # would weld the new task onto the last one and lose both.
-    prefix = "" if (not existing or existing.endswith("\n")) else "\n"
+    # Trailing blank lines and stray spaces upset some readers of this format,
+    # and TaskForge leaves its file without a final newline, so appending blind
+    # would weld the new task onto the last one. Trim the tail, then rewrite:
+    # the task lands directly under the previous one, every time.
     trailer = f" {DUE} {due}" if due else ""
-    with open(path, "a", encoding="utf-8") as handle:
-        handle.write(f"{prefix}- [ ] {text} {CREATED} {date.today().isoformat()}{trailer}\n")
+    line = f"- [ ] {text} {CREATED} {date.today().isoformat()}{trailer}".rstrip()
+    body = existing.rstrip()
+    with open(path, "w", encoding="utf-8") as handle:
+        handle.write((body + "\n" if body else "") + line + "\n")
     return 0
 
 
