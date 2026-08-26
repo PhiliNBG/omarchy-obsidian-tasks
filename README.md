@@ -34,7 +34,7 @@ don't want the widget following whichever one you last opened:
 omarchy bar set avoby.tasks vaultPath /path/to/your/vault
 ```
 
-If neither turns up a vault, the popup offers a folder picker. Changing any
+If neither turns up a vault, the popup asks you to type the path. Changing any
 setting needs `omarchy restart shell` to take effect.
 
 Requires `rg` and `python3`, both standard on Omarchy.

@@ -2,7 +2,6 @@ import QtQuick
 import QtQuick.Controls
 import Quickshell
 import Quickshell.Io
-import QtQuick.Dialogs
 import qs.Commons
 import qs.Ui
 
@@ -111,8 +110,8 @@ Panel {
     vaultProc.running = true
   }
 
-  function chooseVault(url) {
-    var path = String(url || "").replace(/^file:\/\//, "")
+  function chooseVault(input) {
+    var path = root.expand(String(input || "").replace(/^file:\/\//, "").trim())
     if (path === "") return
     // Written through `omarchy bar set` rather than by editing shell.json here,
     // so the setting lands the same way it would if typed by hand.
@@ -235,12 +234,6 @@ Panel {
 
   onVaultHintChanged: root.resolveVault()
   Component.onCompleted: root.resolveVault()
-
-  FolderDialog {
-    id: vaultPicker
-    title: "Choose your Obsidian vault"
-    onAccepted: root.chooseVault(selectedFolder)
-  }
 
   Process {
     id: scanProc
@@ -552,14 +545,22 @@ Panel {
               wrapMode: Text.WordWrap
             }
 
-            Button {
+            // Typed rather than browsed on purpose. A native folder dialog
+            // pulls GTK3 and gvfs into the shell process, where a synchronous
+            // gvfs call aborts and takes the whole bar down with it.
+            TextField {
+              id: vaultField
               visible: !root.vaultExists
-              text: "Choose vault…"
-              bordered: true
+              width: parent.width
               foreground: root.foreground
               accent: root.accent
-              fontFamily: root.fontFamily
-              onClicked: vaultPicker.open()
+              font.family: root.fontFamily
+              font.pixelSize: Style.font.body
+              placeholderText: "Path to your vault, e.g. ~/Notes"
+              onAccepted: {
+                root.chooseVault(text)
+                text = ""
+              }
             }
           }
 
