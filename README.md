@@ -30,7 +30,8 @@ equivalents) — no searching your filesystem, it just asks Obsidian.
 The popup then shows that path in an editable field until you confirm it, so the
 widget works immediately without ever quietly deciding which folder it reads.
 Press Enter to keep it, or type a different path. Either way it's written to
-`vaultPath` and the field goes away.
+`vaultPath` and the field goes away — after that it lives behind the gear in the
+popup's top right, where you can change it any time.
 
 You can also set it directly, which skips the prompt entirely:
 

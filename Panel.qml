@@ -19,6 +19,7 @@ Panel {
   readonly property string glyphBar: String.fromCodePoint(0xF0139)
   readonly property string glyphOpen: String.fromCodePoint(0xF0131)
   readonly property string glyphDone: String.fromCodePoint(0xF0132)
+  readonly property string glyphCog: String.fromCodePoint(0xF0493)
 
   readonly property string home: Quickshell.env("HOME") || ""
   // The configured path, if any. Resolution lives in the helper: an explicit
@@ -30,6 +31,10 @@ Panel {
   // No explicit setting yet. Whatever was detected is a suggestion until the
   // user confirms it, not a decision made on their behalf.
   readonly property bool vaultUnconfigured: root.vaultHint === ""
+  // Revealed by the gear once a vault is set; before that the field is the
+  // whole point and stands on its own.
+  property bool settingsOpen: false
+  readonly property bool vaultRowVisible: root.vaultUnconfigured || root.settingsOpen
   readonly property string displayVault: vaultPath === "" ? "" : vaultPath.replace(root.home, "~")
   // Empty without a vault, rather than a relative path left dangling off the
   // filesystem root: the bad value shouldn't be constructible in the first place.
@@ -117,6 +122,7 @@ Panel {
   function chooseVault(input) {
     var path = root.expand(String(input || "").replace(/^file:\/\//, "").trim())
     if (path === "") return
+    root.settingsOpen = false
     // Written through `omarchy bar set` rather than by editing shell.json here,
     // so the setting lands the same way it would if typed by hand.
     setVaultProc.command = ["omarchy", "bar", "set", root.moduleName, "vaultPath", path]
@@ -201,6 +207,7 @@ Panel {
       cursorActive = false
       editingRaw = ""
       justDone = []
+      settingsOpen = false
       refresh()
     }
   }
@@ -370,7 +377,8 @@ Panel {
           Item {
             id: hero
             width: parent.width
-            implicitHeight: Math.max(heroIcon.implicitHeight, heroLabels.implicitHeight)
+            implicitHeight: Math.max(heroIcon.implicitHeight,
+              Math.max(heroLabels.implicitHeight, gearButton.implicitHeight))
 
             Text {
               id: heroIcon
@@ -383,11 +391,24 @@ Panel {
               opacity: root.openTasks.length === 0 ? 0.5 : 1.0
             }
 
+            PanelActionButton {
+              id: gearButton
+              visible: !root.vaultUnconfigured
+              anchors.right: parent.right
+              anchors.verticalCenter: parent.verticalCenter
+              iconText: root.glyphCog
+              tooltipText: root.settingsOpen ? "Hide vault path" : "Change vault"
+              foreground: root.foreground
+              fontFamily: root.fontFamily
+              onClicked: root.settingsOpen = !root.settingsOpen
+            }
+
             Column {
               id: heroLabels
               anchors.left: heroIcon.right
               anchors.leftMargin: Style.space(14)
               anchors.right: parent.right
+              anchors.rightMargin: gearButton.visible ? gearButton.width + Style.space(12) : 0
               anchors.verticalCenter: parent.verticalCenter
               spacing: Style.space(2)
 
@@ -425,14 +446,16 @@ Panel {
           // saying which — is how you end up staring at the wrong vault.
           Column {
             width: parent.width
-            visible: root.vaultUnconfigured
+            visible: root.vaultRowVisible
             spacing: Style.space(6)
 
             Text {
               width: parent.width
-              text: root.vaultPath === ""
-                ? "Where do your notes live?"
-                : "Using the vault Obsidian has open. Enter to keep it."
+              text: !root.vaultUnconfigured
+                ? "Vault — Enter to change it."
+                : (root.vaultPath === ""
+                   ? "Where do your notes live?"
+                   : "Using the vault Obsidian has open. Enter to keep it.")
               color: root.dim
               font.family: root.fontFamily
               font.pixelSize: Style.font.caption
