@@ -22,16 +22,19 @@ omarchy plugin add https://github.com/mjke87/obsidian-tasks.git --enable
 omarchy bar put mjke87.obsidian-tasks --section center
 ```
 
-**It finds your vault by itself, and shows you what it found.** With `vaultPath`
-unset, it reads the vault Obsidian currently has open from Obsidian's own
-registry (`~/.config/obsidian/obsidian.json`, or the Flatpak and Snap
-equivalents) — no searching your filesystem, it just asks Obsidian.
+**It suggests your vault, but waits to be told.** On first open the popup shows
+a path field and no tasks. The field is pre-filled with the vault Obsidian
+currently has open, read from Obsidian's own registry
+(`~/.config/obsidian/obsidian.json`, or the Flatpak and Snap equivalents) — no
+searching your filesystem, it just asks Obsidian.
 
-The popup then shows that path in an editable field until you confirm it, so the
-widget works immediately without ever quietly deciding which folder it reads.
-Press Enter to keep it, or type a different path. Either way it's written to
-`vaultPath` and the field goes away — after that it lives behind the gear in the
+Nothing is read or stored until you save that path. Press Enter to accept the
+suggestion, or type your own; closing the popup instead discards it and changes
+nothing. Once saved, tasks appear and the field moves behind the gear in the
 popup's top right, where you can change it any time.
+
+Point it at a whole vault or at one folder inside it — whatever you give it is
+the root of the scan.
 
 You can also set it directly, which skips the prompt entirely:
 
