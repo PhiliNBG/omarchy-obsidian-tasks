@@ -317,8 +317,12 @@ Panel {
     anchors.fill: parent
     bar: root.bar
     text: root.glyphBar
+    // Lit or dim, and nothing else. `active` would paint the button in the
+    // theme's urgent colour, which every stock dark theme defines darker than
+    // its foreground -- so the state meant to stand out rendered dimmer than
+    // the ordinary one, and on a monochrome theme it read as switched off.
+    // What is due is said in the tooltip and shown in the popup instead.
     dimmed: root.badgeCount === 0
-    active: root.dueTasks.length > 0
     tooltipText: root.summary
     onPressed: function (code) {
       if (code === Qt.RightButton) root.refresh()
