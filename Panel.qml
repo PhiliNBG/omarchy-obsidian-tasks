@@ -16,7 +16,7 @@ Panel {
   moduleName: "mjke87.obsidian-tasks"
   ipcTarget: "mjke87.obsidian-tasks"
 
-  readonly property string glyphBar: String.fromCodePoint(0xF0139)
+  readonly property string glyphBar: String.fromCodePoint(0xF0135)
   readonly property string glyphOpen: String.fromCodePoint(0xF0131)
   readonly property string glyphDone: String.fromCodePoint(0xF0132)
   readonly property string glyphCog: String.fromCodePoint(0xF0493)
