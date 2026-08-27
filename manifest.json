@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "m1kode.obsidian-tasks",
   "name": "Obsidian Tasks",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "author": "Mike Jarrett",
   "license": "MIT",
   "description": "Obsidian Tasks checkboxes from a local vault, in the Omarchy bar.",
