@@ -21,8 +21,8 @@ The vault is the only state — no database, no account, no cache:
 ## Install
 
 ```bash
-omarchy plugin add https://github.com/mjke87/obsidian-tasks.git --enable
-omarchy bar put mjke87.obsidian-tasks --section center
+omarchy plugin add https://github.com/m1kode/obsidian-tasks.git --enable
+omarchy bar put m1kode.obsidian-tasks --section center
 ```
 
 Requires `rg` and `python3`, both standard on Omarchy.
@@ -30,7 +30,7 @@ Requires `rg` and `python3`, both standard on Omarchy.
 To remove it:
 
 ```bash
-omarchy plugin remove mjke87.obsidian-tasks
+omarchy plugin remove m1kode.obsidian-tasks
 ```
 
 That takes the widget out of the bar and deletes the plugin. Your notes are
@@ -58,7 +58,7 @@ folder any time.
 Or set it from the shell and skip the prompt:
 
 ```bash
-omarchy bar set mjke87.obsidian-tasks vaultPath /path/to/your/vault
+omarchy bar set m1kode.obsidian-tasks vaultPath /path/to/your/vault
 ```
 
 Changing any setting needs `omarchy restart shell` to take effect.

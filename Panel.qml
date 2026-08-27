@@ -13,8 +13,8 @@ import qs.Ui
 // write goes through bin/obsidian-tasks; this file only decides what to show.
 Panel {
   id: root
-  moduleName: "mjke87.obsidian-tasks"
-  ipcTarget: "mjke87.obsidian-tasks"
+  moduleName: "m1kode.obsidian-tasks"
+  ipcTarget: "m1kode.obsidian-tasks"
 
   readonly property string glyphBar: String.fromCodePoint(0xF0135)
   readonly property string glyphOpen: String.fromCodePoint(0xF0131)
@@ -235,7 +235,7 @@ Panel {
           root.vaultSource = String(found.source || "none")
           root.vaultExists = found.exists === true
         } catch (e) {
-          console.warn("mjke87.obsidian-tasks: could not resolve vault", e)
+          console.warn("m1kode.obsidian-tasks: could not resolve vault", e)
           root.vaultExists = false
         }
         if (vaultProc.ranWith !== root.vaultHint) Qt.callLater(root.resolveVault)
@@ -262,7 +262,7 @@ Panel {
           var parsed = JSON.parse(String(text || "[]"))
           root.tasks = Array.isArray(parsed) ? parsed : []
         } catch (e) {
-          console.warn("mjke87.obsidian-tasks: could not parse scan output", e)
+          console.warn("m1kode.obsidian-tasks: could not parse scan output", e)
           root.tasks = []
         }
         root.everScanned = true
