@@ -139,6 +139,13 @@ Panel {
     setVaultProc.running = true
   }
 
+  function choosePattern(input) {
+    var pattern = String(input || "").trim()
+    if (pattern === "") return
+    setPatternProc.command = ["omarchy", "bar", "set", root.moduleName, "taskPattern", pattern]
+    setPatternProc.running = true
+  }
+
   function completeTask(task) {
     if (!task || editProc.running) return
     // The exact line, not its number: sync can rewrite the file between the
@@ -253,7 +260,13 @@ Panel {
     onExited: root.resolveVault()
   }
 
+  Process {
+    id: setPatternProc
+    onExited: root.refresh()
+  }
+
   onVaultHintChanged: root.resolveVault()
+  onTaskPatternChanged: root.refresh()
   Component.onCompleted: root.resolveVault()
 
   Process {
@@ -428,7 +441,7 @@ Panel {
 
               Text {
                 width: parent.width
-                text: "Tasks [TEST]"
+                text: "Tasks"
                 color: root.foreground
                 font.family: root.fontFamily
                 font.pixelSize: Style.font.title
@@ -498,6 +511,50 @@ Panel {
                 // the suggestion again rather than yesterday's abandoned typing.
                 function onOpenedChanged() {
                   if (root.opened) vaultField.text = root.displayVault
+                }
+              }
+            }
+
+            PanelSeparator {
+              width: parent.width
+              foreground: root.foreground
+            }
+          }
+
+          // Advanced: which lines rg hands to the checkbox parser. Lives
+          // behind the same gear as the vault field rather than its own row,
+          // since it's a once-in-a-while tweak, not a day-to-day setting.
+          Column {
+            width: parent.width
+            visible: root.settingsOpen
+            spacing: Style.space(6)
+
+            Text {
+              width: parent.width
+              text: "Task line pattern (regex) — Enter to change it."
+              color: root.dim
+              font.family: root.fontFamily
+              font.pixelSize: Style.font.caption
+              wrapMode: Text.WordWrap
+            }
+
+            TextField {
+              id: patternField
+              width: parent.width
+              foreground: root.foreground
+              accent: root.accent
+              font.family: root.fontFamily
+              font.pixelSize: Style.font.body
+              placeholderText: root.taskPattern
+              onAccepted: root.choosePattern(text)
+              Component.onCompleted: text = root.taskPattern
+              Connections {
+                target: root
+                function onTaskPatternChanged() {
+                  if (!patternField.activeFocus) patternField.text = root.taskPattern
+                }
+                function onOpenedChanged() {
+                  if (root.opened) patternField.text = root.taskPattern
                 }
               }
             }
