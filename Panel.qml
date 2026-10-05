@@ -428,7 +428,7 @@ Panel {
 
               Text {
                 width: parent.width
-                text: "Tasks"
+                text: "Tasks [TEST]"
                 color: root.foreground
                 font.family: root.fontFamily
                 font.pixelSize: Style.font.title
