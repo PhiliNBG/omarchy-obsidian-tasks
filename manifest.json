@@ -22,7 +22,8 @@
       "vaultPath": "",
       "inboxFile": "Inbox.md",
       "countMode": "all",
-      "refreshIntervalSec": 60
+      "refreshIntervalSec": 60,
+      "taskPattern": "^\\s*[-*+] \\[.\\] "
     },
     "schema": [
       {
@@ -59,6 +60,13 @@
         "step": 10,
         "defaultValue": 60,
         "description": "How often the vault is rescanned. The popup also rescans every time it opens."
+      },
+      {
+        "key": "taskPattern",
+        "type": "string",
+        "label": "Task line pattern (regex)",
+        "defaultValue": "^\\s*[-*+] \\[.\\] ",
+        "description": "Regex passed to ripgrep to find candidate task lines. A matched line still has to parse as a checkbox to become a task, so a wider pattern only adds candidates."
       }
     ]
   }

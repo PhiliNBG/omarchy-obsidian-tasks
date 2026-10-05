@@ -123,6 +123,7 @@ From the widget's entry in `~/.config/omarchy/shell.json`:
 | `inboxFile` | `Inbox.md` | Where *new* tasks are appended, relative to the vault |
 | `countMode` | `all` | `all` lights the icon for any open task; `due` only for today or earlier |
 | `refreshIntervalSec` | `60` | Rescan interval |
+| `taskPattern` | `^\s*[-*+] \[.\] ` | Regex handed to `rg` to find candidate task lines. A match still has to parse as a checkbox to become a task, so widening it only adds candidates — it can't bypass the checkbox format. |
 
 `.obsidian`, `.trash`, `.git` and `Templates` are always skipped — a daily-note
 template full of `- [ ]` placeholders would otherwise inflate the count with

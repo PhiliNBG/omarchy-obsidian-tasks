@@ -46,6 +46,10 @@ Panel {
     ? vaultPath + "/" + String(setting("inboxFile", "Inbox.md"))
     : ""
   readonly property string countMode: String(setting("countMode", "all"))
+  // Handed to rg as-is, so this is a regex, not a glob. The default matches
+  // the checkbox syntax every format understands; a vault with its own
+  // bullet conventions can widen it without waiting on a release here.
+  readonly property string taskPattern: String(setting("taskPattern", "^\\s*[-*+] \\[.\\] "))
   readonly property int refreshIntervalSec: Math.max(10, Number(setting("refreshIntervalSec", 60)))
   // Shipped beside the QML so the plugin stays one directory to install or remove.
   readonly property string helper: Qt.resolvedUrl("bin/obsidian-tasks").toString().replace("file://", "")
@@ -254,7 +258,7 @@ Panel {
 
   Process {
     id: scanProc
-    command: [root.helper, "scan", root.vaultPath]
+    command: [root.helper, "scan", root.vaultPath, root.taskPattern]
     stdout: StdioCollector {
       waitForEnd: true
       onStreamFinished: {
